@@ -2,7 +2,7 @@
 require 'httparty'
 require 'json'
 
-CLASH_DIR = ENV['APPDATA'] + "../Local/Corporate Clash"
+CLASH_DIR = "../Local/Corporate Clash"
 REWRITTEN_DIR = "c:/Program Files (x86)/Toontown Rewritten"
 
 puts "Welcome to the universal Toontown launcher!"
@@ -19,7 +19,7 @@ def login (game, user, pwsd)
     if game == 1
         url = "https://www.toontownrewritten.com/api/login?format=json"
         status = 'success'
-    else
+    elsif game == 2
         url = "https://corporateclash.net/api/v1/login/"
         status = 'status'
     end
@@ -48,9 +48,12 @@ def login (game, user, pwsd)
                 print response_json['banner']  # Instructs user to enter authentication token
                 app_token = gets.chomp
                 response = post_request(url, status, appToken: app_token, authToken: response_json['responseToken'])
+            # Alerts user if the request was not successful
+            elsif response_status.to_s == "false"
+                print response_json['banner']  # Instructs user on the failure
+                login  # Returns back to login
             end
         }
-        end
     # Clash
     elsif game == 2
         puts response_json.to_s
@@ -75,6 +78,7 @@ def run_game (game, gameserver, token)
         ENV['TTR_PLAYCOOKIE'] = token.to_s
         puts "Changed directory to Rewritten game directory"
     elsif game == 2
+        Dir.chdir(ENV['APPDATA'])
         Dir.chdir(CLASH_DIR)
         ENV['TT_GAMESERVER'] = gameserver.to_s
         ENV['TT_PLAYCOOKIE'] = token.to_s
