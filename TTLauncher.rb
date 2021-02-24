@@ -1,25 +1,34 @@
-# This is my first Ruby project, please be nice :)
+=begin
+Project: Toontown Unilauncher
+Author: Christian Diaz
+Description: An universal command-line launcher for several Toontown servers
+Version: v1.0
+License: Unilicense
+
+This is my first Ruby project, please be nice :)
+=end
+
 require 'httparty'
 require 'json'
 require 'rbconfig'
+require 'io/console'
+
+puts "Welcome to the Universal Toontown launcher!"
+puts "Ruby version: #{RUBY_VERSION}"
 
 @os = RbConfig::CONFIG['host_os']
-
-# Global vars
-$GAME
+puts "OS: #{@os}"
 
 case @os
-when 'mingw32'
-    $CLASH_DIR = ENV['APPDATA'] + "/../Local/Corporate Clash"
-    $REWRITTEN_DIR = "c:/Program Files (x86)/Toontown Rewritten"
-    $REWRITTEN_START_FILE = "TTREngine.exe"
-    $CLASH_START_FILE = "CorporateClash.exe"
-  else
+when 'mingw32'  # Windows
+    $clash_dir = ENV['APPDATA'] + "/../Local/Corporate Clash"
+    $rewritten_dir = "c:/Program Files (x86)/Toontown Rewritten"
+    $rewritten_start_file = "TTREngine.exe"
+    $clash_start_file = "CorporateClash.exe"
+  else          # Not Windows lol
     puts 'You are not on a supported platform. exiting...'
-    exit
+    exit_program
   end
-
-puts "Welcome to the universal Toontown launcher!"
 
 class StartGame
     def start_login (user, pwsd)
@@ -47,20 +56,25 @@ class StartGame
                 # Updates response varriables
                 response_status, response_json = response[0], response[1]
 
+                case response_status.to_s
                 # Runs game if request comes back successful
-                if response_status.to_s == "true"
-                    run_game response_json['gameserver'], response_json['cookie']
+                when "true"
+                    run_game response_json['gameserver'].to_s, response_json['cookie'].to_s
                     break
+
                 # Sends another request with queueToken
-                elsif response_status.to_s == "delayed"
+                when "delayed"
                     response = post_request(url, status, queueToken: response_json['queueToken'])
+
                 # Sends another request with 3rd party authentication token
-                elsif response_status.to_s == "partial"
+                when "partial"
                     puts response_json['banner']  # Instructs user to enter authentication token
+                    print "Enter: "
                     app_token = gets.chomp
                     response = post_request(url, status, appToken: app_token, authToken: response_json['responseToken'])
+
                 # Alerts user if the request was not successful
-                elsif response_status.to_s == "false"
+                when "false"
                     puts response_json['banner']  # Instructs user on the failure
                     retry_login  # Returns back to login
                 end
@@ -70,7 +84,8 @@ class StartGame
             # Runs game if request is successful
             if response_status.to_s == "true"
                 puts response_json['friendlyreason'].to_s
-                run_game "gs.corporateclash.net", response_json['token']
+                run_game "gs.corporateclash.net", response_json['token'].to_s
+
             # Informs user if request is unsuccessful
             else 
                 puts response_json['friendlyreason'].to_s
@@ -80,13 +95,16 @@ class StartGame
     end
 
     def post_request (url, status, post_body = {})
+        # POST request object
         response = HTTParty.post(url, body: post_body)
+
         case response.code
         # Success!
          when 200
             response_json = JSON.parse(response.body)
             response_status = response_json[status]
             return response_status, response_json
+
         # API can't be found
          when 404
             puts "The login API endpoint is unavailable at this time.  Steps to check:"
@@ -94,11 +112,13 @@ class StartGame
             puts "2. Test if the login endpoint is up, such as logging in with the offical launcher."
             puts "3. Determine if the specific API url is blocked by a DNS or router configuration."
             puts "If all steps above fail, create an issue on the Github repo (https://github.com/chrisd149/Toontown-Uni-Launcher)
-            or contact me directly at https://github.com/chrisd149/Toontown-Uni-Launche#contact"
+            or contact me directly at https://github.com/chrisd149/Toontown-Uni-Launcher#contact"
+
         # Server is borked
            when 500...600
             puts "Login server had an internal failure, try logging in later."
             puts "ERROR CODE: #{response.code}"
+            exit_program
         end
     end
 
@@ -106,45 +126,45 @@ class StartGame
         # Change working directory to game folder, and sets ENV vars
         case $GAME
         when 1
-            Dir.chdir($REWRITTEN_DIR)
-            ENV['TTR_GAMESERVER'] = gameserver.to_s
-            ENV['TTR_PLAYCOOKIE'] = token.to_s
+            Dir.chdir($rewritten_dir)
+            ENV['TTR_GAMESERVER'] = gameserver
+            ENV['TTR_PLAYCOOKIE'] = token
             puts "Changed directory to Rewritten game directory"
+            start_file = $rewritten_start_file
             
-            # Start game
-            puts "Starting game..."
-            exec($REWRITTEN_START_FILE)
         when 2
-            Dir.chdir($CLASH_DIR)
-            ENV['TT_GAMESERVER'] = gameserver.to_s
-            ENV['TT_PLAYCOOKIE'] = token.to_s
+            Dir.chdir($clash_dir)
+            ENV['TT_GAMESERVER'] = gameserver
+            ENV['TT_PLAYCOOKIE'] = token
             puts "Changed directory to Clash game directory"
-            
-            # Start game
-            puts "Starting game..."
-            exec($CLASH_START_FILE)
+            start_file = $clash_start_file
         end
+
+        # Starts game
+        puts "Starting game..."
+        system(start_file)
+        retry_login
     end
 end
 
 def retry_login
-    print "Do you want to retry logging in? (Y/N): "
+    print "\nDo you want to retry logging in? (Y/N): "
     loop {
         case gets.chomp.upcase
         when "Y"
             get_user
             break
         when "N"
-            exit
+            exit_program
         else
-            puts "Wrong input, enter 'Y' to return to login or 'N' to exit the program: "
+            print "Wrong input, enter 'Y' to return to login or 'N' to exit the program: "
         end
     }
 end
 
 def get_user
     # User inputs
-    puts "Choose your game:"
+    puts "\nChoose your game:"
     puts "1 = TTR"
     puts "2 = TTCC"
     print "Enter: "
@@ -152,11 +172,19 @@ def get_user
     print "Enter username: "
     username = gets.chomp
     print "Enter password: "
-    password = gets.chomp
+    password = STDIN.noecho(&:gets).chomp
+    print "\n"
 
     # Logins into game
     login = StartGame.new
     login.start_login(username, password)
 end
 
-get_user
+def exit_program 
+    # Exits program
+    puts "\nSend any comments or concerns to me at https://github.com/chrisd149/Toontown-Uni-Launcher#contact or open an issue at https://github.com/chrisd149/Toontown-Uni-Launcher/issues/new."
+    puts "Exiting now..."
+    exit
+end
+
+get_user  # Starts program
