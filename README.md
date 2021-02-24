@@ -8,6 +8,8 @@ Supported Toontown Servers:
 Supported OSes:
 * Windows
 
+If you would like another server and/or OS to be supported, open an issue/pull request or contact me directly.
+
 ## Install
 Before installing, make sure to download a recent version of [Ruby 2](https://rubyinstaller.org/downloads/).
 
