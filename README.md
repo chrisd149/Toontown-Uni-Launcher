@@ -17,7 +17,7 @@ After downloading the repo's files, install all modules with bundle:
 
 ```bundle install```
 
-Afterwards, the program should be able to run by executing `TTLauncher.rb`, or in a seperate command-line program.
+Afterwards, the program should be able to run by executing `lib/uni_launcher.rb`, or in a seperate command-line program.
 
 ## Contact
 I can be contacted via the following methods:
